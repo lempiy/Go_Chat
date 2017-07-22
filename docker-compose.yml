@@ -1,0 +1,31 @@
+version: "2"
+
+services:
+  backend:
+    build: .
+    image: golang:1.8.3-alpine
+    container_name: golang
+    volumes:
+      - .:/go/src/github.com/lempiy/gochat
+    working_dir: /go/src/github.com/lempiy/gochat
+    ports:
+      - "8080:8080"
+    links:
+      - postgres
+    command: bee run
+    environment:
+      DB_PASSWORD: xxpassxx
+      DB_USER: db_user
+      DB_DB: gochat
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgresql:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: xxpassxx
+      POSTGRES_USER: db_user
+      POSTGRES_DB: gochat

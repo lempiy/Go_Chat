@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Chat go</title>
+</head>
+<body>
+    <h1>Hello World!!!!</h1>
+    <script>
+        var socket = new WebSocket('ws://' + window.location.host + '/ws/join/?id=Anton');
+        socket.onopen = (event) => {
+            console.log("Handshake success.")
+            socket.send("get");
+        }
+        socket.onmessage = (event) => {
+            console.log(event.data)
+        }
+    </script>
+</body>
+</html>
