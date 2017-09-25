@@ -1,6 +1,7 @@
 package system
 
 import (
+	"encoding/json"
 	"github.com/astaxie/beego"
 	"github.com/gorilla/websocket"
 	"github.com/lempiy/gochat/models"
@@ -9,9 +10,9 @@ import (
 
 //Session type represents anonymous with unique uuid v4 and ws connection
 type Session struct {
-	UUID string
-	Conn *websocket.Conn
-	Sub  *models.User //nil if anonymous
+	UUID string          `json:"uuid"`
+	Conn *websocket.Conn `json:"-"`
+	Sub  *models.User    `json:"-"` //nil if anonymous
 }
 
 //NewSession creates session with unique UUID
@@ -35,12 +36,12 @@ type System struct {
 	unsubscribe chan string
 	publish     chan models.Event
 	retrieve    chan string
-	eventMap    map[string]func(e models.Event) *Response
+	eventMap    map[string]func(e models.Event, s *Session) *Response
 	leave       chan string
 }
 
 //New is a system broker constructor
-func New(eventMap *map[string]func(e models.Event) *Response) *System {
+func New(eventMap *map[string]func(e models.Event, s *Session) *Response) *System {
 	return &System{
 		subscribers: make(map[string]*Session),
 		subscribe:   make(chan *Session, 10),
@@ -83,8 +84,13 @@ func (sys *System) run() {
 		case sub := <-sys.subscribe:
 			if _, found := sys.subscribers[sub.UUID]; !found {
 				sys.subscribers[sub.UUID] = sub
+				r, _ := json.Marshal(sub)
+				if sub.Conn.WriteMessage(websocket.TextMessage, r) != nil {
+					sys.unsubscribe <- sub.UUID
+				}
+				beego.Info("NEW SESSION: ", sub.UUID)
 			} else {
-				beego.Info("Old actor: ", sub.UUID, "; WebSocket: ", sub.Conn != nil)
+				beego.Info("Old session: ", sub.UUID, "; WebSocket: ", sub.Conn != nil)
 			}
 
 		case sUUID := <-sys.retrieve:
@@ -93,13 +99,17 @@ func (sys *System) run() {
 					sys.unsubscribe <- sub.UUID
 				}
 			} else {
-				beego.Info("User ", sUUID, " is not in a room.")
+				beego.Info("User ", sUUID, " is not in a system.")
 			}
 			beego.Info("Get messages")
 
 		case event := <-sys.publish:
-			if h, found := sys.eventMap[event.SysType]; found {
-				h(event)
+			var sub *Session
+			var exist bool
+			json.Unmarshal([]byte(event.Content), sub)
+			sub, exist = sys.subscribers[sub.UUID]
+			if h, found := sys.eventMap[event.SysType]; found && exist {
+				h(event, sub)
 			}
 			beego.Info("New system event: ", event.Content)
 

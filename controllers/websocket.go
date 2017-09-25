@@ -11,9 +11,11 @@ import (
 	"github.com/lempiy/gochat/models"
 	"github.com/lempiy/gochat/types"
 	"github.com/lempiy/gochat/types/chatroom"
+	"github.com/lempiy/gochat/types/system"
 )
 
 var globalRoom *chatroom.Chatroom
+var sys *system.System
 
 //WebSocketCtrl deals with websocket connections and data transfer.
 type WebSocketCtrl struct {
@@ -30,10 +32,14 @@ type Action struct {
 var Rooms RoomsList
 
 func init() {
+	sys = system.New(system.StandartMap)
+	sys.Init()
+
 	Rooms = make(RoomsList)
 	globalRoom = chatroom.New(models.NewRoom(20, models.RoomTypeGeneral, 1))
 	Rooms[globalRoom.ID] = globalRoom
 	globalRoom.Init()
+
 }
 
 func initRoomAndSubscribe(sub *chatroom.Subscriber, room *models.Room) {
@@ -61,6 +67,10 @@ func (wsc *WebSocketCtrl) Get() {
 		beego.Error("Cannot setup WebSocket connection:", err)
 		return
 	}
+	session := system.NewSession(ws)
+
+	sys.Join(session)
+
 	u := &models.User{
 		Username: id,
 		Password: "q1w2e3r4",
