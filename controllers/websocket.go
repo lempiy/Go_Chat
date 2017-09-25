@@ -22,6 +22,11 @@ type WebSocketCtrl struct {
 
 type RoomsList map[int]*chatroom.Chatroom
 
+type Action struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
 var Rooms RoomsList
 
 func init() {
@@ -90,13 +95,16 @@ func (wsc *WebSocketCtrl) Get() {
 			return
 		}
 
-		if string(data) == "get" {
+		message := Action{}
+		json.Unmarshal(data, &message)
+		fmt.Println(message)
+		if message.Type == "get" {
 			globalRoom.RetrieveEvents(sub.Id)
 		} else {
 			e := models.Event{
 				Type:    models.EventMessage,
 				User:    sub.User,
-				Content: string(data),
+				Content: message.Text,
 				Room:    globalRoom.Model}
 
 			globalRoom.Emit(e)

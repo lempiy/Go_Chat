@@ -15,6 +15,11 @@ type Subscriber struct {
 	Conn    *websocket.Conn
 }
 
+type MessageResponse struct {
+	Type string `json:"type"`
+	Data interface{} `json:"data"`
+}
+
 //Chatroom is a general type for charooms that can be dynamically created on runtime
 type Chatroom struct {
 	ID          int
@@ -86,7 +91,11 @@ func (chatroom *Chatroom) run() {
 			events := chatroom.Model.GetAll()
 			beego.Info(events)
 			if sub, found := chatroom.subscribers[sID]; found {
-				data, err := json.Marshal(events)
+				answer := MessageResponse{
+					Type: "get",
+					Data: events,
+				}
+				data, err := json.Marshal(answer)
 				if err != nil {
 					beego.Warning(err)
 				}
@@ -128,7 +137,11 @@ func (chatroom *Chatroom) run() {
 
 //broadcast func broadcasts messages to subs in room.
 func (chatroom *Chatroom) broadcast(event *models.Event) {
-	data, err := json.Marshal(event)
+	m := MessageResponse{
+		Type: "message", //replace hardcode
+		Data: event,
+	}
+	data, err := json.Marshal(&m)
 	if err != nil {
 		beego.Error("Error upon marshalling event data: ", err)
 		return

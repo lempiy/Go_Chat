@@ -9,10 +9,13 @@
 <body>
     <h1>Hello World!!!!</h1>
     <script>
-        var socket = new WebSocket('ws://' + window.location.host + '/ws/join/?id=Anton');
+        var socket = new WebSocket('ws://' + window.location.host + '/ws/join/?id=Golang');
         socket.onopen = (event) => {
             console.log("Handshake success.")
-            socket.send("get");
+            socket.send(JSON.stringify({
+                "type": "message",
+                "text": "Hello from GO!"
+            }));
         }
         socket.onmessage = (event) => {
             console.log(event.data)
