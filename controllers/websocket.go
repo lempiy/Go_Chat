@@ -36,7 +36,8 @@ var Rooms RoomsList
 var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Response{
 	"login": func(e models.Event, s *system.Session) *system.Response {
 		beego.Info(e)
-		return &system.Response{"login", true}
+		r := login(e.Content)
+		return &system.Response{"login", r}
 	},
 }
 
