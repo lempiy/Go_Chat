@@ -17,7 +17,7 @@
             socket.send(JSON.stringify({
                 "type": "login",
                 "target": "system",
-                "text": "{\"text\": \"Hello from GO!\"}"
+                "text": "{\"username\": \"lempiy\", \"password\":\"12345\"}"
             }));
         }
         socket.onmessage = (event) => {

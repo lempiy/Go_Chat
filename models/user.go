@@ -5,10 +5,10 @@ import (
 )
 
 type User struct {
-	Id        int       `json:"id"`
-	Username  string    `json:"username" orm:"unique"`
-	Password  string    `json:"password,omitempty"`
-	Rooms     []*Room   `json:"rooms,omitempty" orm:"reverse(many)"`
+	Id        int        `json:"id"`
+	Username  string     `json:"username" orm:"unique"`
+	Password  string     `json:"password,omitempty"`
+	Rooms     []*Room    `json:"rooms,omitempty" orm:"reverse(many)"`
 	CreatedAt *time.Time `json:"created_at,string,omitempty" orm:"auto_now_add;type(timestamp)"`
 }
 
@@ -56,6 +56,6 @@ func CreateOrReadUser(u *User) error {
 	return err
 }
 
-func ReadUser(u *User) error {
-	return O.Read(u)
+func ReadUser(u *User, f ...string) error {
+	return O.Read(u, f...)
 }

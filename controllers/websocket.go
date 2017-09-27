@@ -35,10 +35,36 @@ var Rooms RoomsList
 
 var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Response{
 	"login": func(e models.Event, s *system.Session) *system.Response {
-		beego.Info(e)
-		r := login(e.Content)
-		return &system.Response{"login", r}
+		r, user := login(e.Content)
+		if r.Success {
+			sys.Leave(s.Token)
+			s.Token = r.Token
+			sys.Join(s)
+			upgrade2Sub(s, user)
+		}
+		return &system.Response{Type: "login", Data: r}
 	},
+	"register": func(e models.Event, s *system.Session) *system.Response {
+		r, user := register(e.Content)
+		if r.Success {
+			sys.Leave(s.Token)
+			s.Token = r.Token
+			sys.Join(s)
+			upgrade2Sub(s, user)
+		}
+		return &system.Response{Type: "register", Data: r}
+	},
+}
+
+func upgrade2Sub(session *system.Session, u *models.User) error {
+	session.Sub.User = u
+	err := session.Sub.User.LoadUsersRooms()
+	if err != nil {
+		return err
+	}
+	joinRoomsInitial(session.Sub)
+	globalRoom.Join(session.Sub)
+	return nil
 }
 
 func init() {
@@ -92,7 +118,7 @@ func (wsc *WebSocketCtrl) Get() {
 				Password: "q1w2e3r4",
 			}
 
-			err = models.CreateOrReadUser(u)
+			err = models.ReadUser(u)
 
 			if err != nil {
 				fmt.Println(err)
@@ -100,21 +126,17 @@ func (wsc *WebSocketCtrl) Get() {
 
 			u.Password = ""
 
-			sub = &chatroom.Subscriber{
-				User: u,
-				Conn: ws}
+			sub = session.Sub
+			sub.User = u
 
 			sub.User.LoadUsersRooms()
-
 			joinRoomsInitial(sub)
-
 			globalRoom.Join(sub)
-			defer leaveAllRooms(sub)
 		}
 	}
 
 	sys.Join(session)
-
+	defer leaveAllRooms(session.Sub)
 	for {
 		_, data, err := ws.ReadMessage()
 		if err != nil {

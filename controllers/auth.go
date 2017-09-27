@@ -12,27 +12,45 @@ type loginData struct {
 }
 
 type loginResponse struct {
-	Success bool `json:"success"`
-	Token string `json:"token,omitempty"`
+	Success bool   `json:"success"`
+	Token   string `json:"token,omitempty"`
 }
 
-func login(l string) loginResponse {
+func login(l string) (loginResponse, *models.User) {
 	ld := loginData{}
 	err := json.Unmarshal([]byte(l), &ld)
 	if err != nil {
-		return loginResponse{}
+		return loginResponse{}, nil
 	}
 	u := models.User{
 		Username: ld.Username,
 		Password: ld.Password,
 	}
-	err = models.ReadUser(&u)
+	err = models.ReadUser(&u, "Username", "Password")
 	if err != nil || u.Id == 0 {
-		return loginResponse{}
+		return loginResponse{}, nil
+	}
+	t, _ := token.GetToken(u.Username, u.Id)
+
+	return loginResponse{
+		Success: true,
+		Token:   t,
+	}, &u
+}
+
+func register(l string) (loginResponse, *models.User) {
+	ld := loginData{}
+	err := json.Unmarshal([]byte(l), &ld)
+	if err != nil {
+		return loginResponse{}, nil
+	}
+	u, err := models.Create(ld.Username, ld.Password)
+	if err != nil || u.Id == 0 {
+		return loginResponse{}, nil
 	}
 	t, _ := token.GetToken(u.Username, u.Id)
 	return loginResponse{
 		Success: true,
-		Token: t,
-	}
+		Token:   t,
+	}, u
 }

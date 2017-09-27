@@ -5,6 +5,7 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/gorilla/websocket"
 	"github.com/lempiy/gochat/models"
+	"github.com/lempiy/gochat/types/chatroom"
 	"github.com/lempiy/gochat/utils/token"
 )
 
@@ -12,9 +13,9 @@ const Identifier = "system"
 
 //Session type represents anonymous with unique uuid v4 and ws connection
 type Session struct {
-	Token string          `json:"token"`
-	Conn  *websocket.Conn `json:"-"`
-	Sub   *models.User    `json:"-"` //nil if anonymous
+	Token string               `json:"token"`
+	Conn  *websocket.Conn      `json:"-"`
+	Sub   *chatroom.Subscriber `json:"-"` //nil if anonymous
 }
 
 //NewSession creates session with unique Token
@@ -25,6 +26,9 @@ func NewSession(con *websocket.Conn, tkn string) *Session {
 	return &Session{
 		Token: tkn,
 		Conn:  con,
+		Sub: &chatroom.Subscriber{
+			Conn: con,
+		},
 	}
 }
 
@@ -112,8 +116,11 @@ func (sys *System) run() {
 			beego.Info("New system event: ", event.Token)
 			if session, exist := sys.subscribers[event.Token]; exist {
 				if h, found := sys.eventMap[event.SysType]; found {
-					h(event, session)
-
+					res := h(event, session)
+					r, _ := json.Marshal(res)
+					if session.Conn.WriteMessage(websocket.TextMessage, r) != nil {
+						sys.unsubscribe <- session.Token
+					}
 				}
 			}
 		case unsub := <-sys.unsubscribe:
