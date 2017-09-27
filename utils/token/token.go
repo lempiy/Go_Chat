@@ -16,7 +16,7 @@ type TokenClaims struct {
 var mySigningKey = []byte("secret")
 
 //getAnonToken will get a token for non-auth user
-func getAnonToken() (string, error) {
+func GetAnonToken() (string, error) {
 	claims := TokenClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * 5).Unix(),
@@ -34,8 +34,8 @@ func getAnonToken() (string, error) {
 	return tokenString, nil
 }
 
-//GetTokenHandler will get a token for the username
-func getToken(username string, id int) (string, error) {
+//GetToken will get a token for the username
+func GetToken(username string, id int) (string, error) {
 
 	claims := TokenClaims{
 		username,

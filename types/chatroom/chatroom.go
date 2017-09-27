@@ -8,6 +8,8 @@ import (
 	"github.com/lempiy/gochat/models"
 )
 
+const Identifier = "room"
+
 //Subscriber type represents rooms subscriber with unique ID and ws connection
 type Subscriber struct {
 	*models.User
@@ -16,7 +18,7 @@ type Subscriber struct {
 }
 
 type MessageResponse struct {
-	Type string `json:"type"`
+	Type string      `json:"type"`
 	Data interface{} `json:"data"`
 }
 
@@ -29,7 +31,7 @@ type Chatroom struct {
 	unsubscribe chan int
 	publish     chan models.Event
 	retrieve    chan int
-	leave chan int
+	leave       chan int
 }
 
 //New is a chatroom constructor that generates room with random ID
@@ -42,7 +44,7 @@ func New(model *models.Room) *Chatroom {
 		unsubscribe: make(chan int, 10),
 		retrieve:    make(chan int, 10),
 		publish:     make(chan models.Event),
-		leave: make(chan int, 10)}
+		leave:       make(chan int, 10)}
 }
 
 //Join method for joining new subs to room

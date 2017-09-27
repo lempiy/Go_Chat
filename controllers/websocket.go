@@ -9,9 +9,9 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/gorilla/websocket"
 	"github.com/lempiy/gochat/models"
-	"github.com/lempiy/gochat/types"
 	"github.com/lempiy/gochat/types/chatroom"
 	"github.com/lempiy/gochat/types/system"
+	"github.com/lempiy/gochat/utils/token"
 )
 
 var globalRoom *chatroom.Chatroom
@@ -25,14 +25,23 @@ type WebSocketCtrl struct {
 type RoomsList map[int]*chatroom.Chatroom
 
 type Action struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	Target   string `json:"target"`
+	TargetId int    `json:"target_id,omitempty"`
 }
 
 var Rooms RoomsList
 
+var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Response{
+	"login": func(e models.Event, s *system.Session) *system.Response {
+		beego.Info(e)
+		return &system.Response{"login", true}
+	},
+}
+
 func init() {
-	sys = system.New(system.StandartMap)
+	sys = system.New(StandartMap)
 	sys.Init()
 
 	Rooms = make(RoomsList)
@@ -52,11 +61,11 @@ func initRoomAndSubscribe(sub *chatroom.Subscriber, room *models.Room) {
 //Get methods establishes connection with users.
 func (wsc *WebSocketCtrl) Get() {
 	wsc.TplName = "index.html"
-	id := wsc.GetString("id")
-	if len(id) == 0 {
-		wsc.Redirect("/", 302)
-		return
-	}
+	t := wsc.GetString("token")
+	//if len(t) == 0 {
+	//	wsc.Redirect("/", 302)
+	//	return
+	//}
 
 	ws, err := websocket.Upgrade(wsc.Ctx.ResponseWriter, wsc.Ctx.Request, nil, 1024, 1024)
 	if _, ok := err.(websocket.HandshakeError); ok {
@@ -67,33 +76,43 @@ func (wsc *WebSocketCtrl) Get() {
 		beego.Error("Cannot setup WebSocket connection:", err)
 		return
 	}
-	session := system.NewSession(ws)
+	var session *system.Session
+	var sub *chatroom.Subscriber
+	fmt.Println("TOKENs", t)
+	isValid, username := token.ValidateToken(t)
+
+	if !isValid {
+		session = system.NewSession(ws, "")
+	} else {
+		session = system.NewSession(ws, t)
+		if username != "" {
+			u := &models.User{
+				Username: username,
+				Password: "q1w2e3r4",
+			}
+
+			err = models.CreateOrReadUser(u)
+
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			u.Password = ""
+
+			sub = &chatroom.Subscriber{
+				User: u,
+				Conn: ws}
+
+			sub.User.LoadUsersRooms()
+
+			joinRoomsInitial(sub)
+
+			globalRoom.Join(sub)
+			defer leaveAllRooms(sub)
+		}
+	}
 
 	sys.Join(session)
-
-	u := &models.User{
-		Username: id,
-		Password: "q1w2e3r4",
-	}
-
-	err = models.CreateOrReadUser(u)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	u.Password = ""
-
-	sub := &chatroom.Subscriber{
-		User: u,
-		Conn: ws}
-
-	sub.User.LoadUsersRooms()
-
-	joinRoomsInitial(sub)
-
-	globalRoom.Join(sub)
-	defer leaveAllRooms(sub)
 
 	for {
 		_, data, err := ws.ReadMessage()
@@ -107,17 +126,45 @@ func (wsc *WebSocketCtrl) Get() {
 
 		message := Action{}
 		json.Unmarshal(data, &message)
-		fmt.Println(message)
-		if message.Type == "get" {
-			globalRoom.RetrieveEvents(sub.Id)
-		} else {
-			e := models.Event{
-				Type:    models.EventMessage,
-				User:    sub.User,
-				Content: message.Text,
-				Room:    globalRoom.Model}
 
-			globalRoom.Emit(e)
+		if message.Target == system.Identifier {
+			fmt.Println("MESSSAGE", message)
+			sys.Publish(models.Event{
+				SysType: message.Type,
+				Content: message.Text,
+				Token:   session.Token,
+				Room:    globalRoom.Model})
+		} else if username != "" {
+			switch message.Type {
+			case "get":
+				globalRoom.RetrieveEvents(sub.Id)
+			case "connect":
+				connectToRooms(sub, message)
+			default:
+				if message.TargetId == 0 {
+					e := models.Event{
+						Type:    models.EventMessage,
+						User:    sub.User,
+						Token:   session.Token,
+						Content: message.Text,
+						Room:    globalRoom.Model}
+
+					globalRoom.Emit(e)
+				} else {
+					if r, exist := Rooms[message.TargetId]; exist {
+						e := models.Event{
+							Type:    models.EventMessage,
+							User:    sub.User,
+							Content: message.Text,
+							Token:   session.Token,
+							Room:    r.Model}
+
+						r.Emit(e)
+					}
+				}
+			}
+		} else {
+			ws.WriteMessage(websocket.TextMessage, []byte(`{"error": "Non authorized access"}`))
 		}
 	}
 }
@@ -135,9 +182,9 @@ type dataConnect struct {
 	Rooms []int `json:"rooms"`
 }
 
-func connectToRooms(sub *chatroom.Subscriber, am types.ActionMessage) error {
+func connectToRooms(sub *chatroom.Subscriber, am Action) error {
 	var data dataConnect
-	err := json.Unmarshal([]byte(am.Data), &data)
+	err := json.Unmarshal([]byte(am.Text), &data)
 	if err != nil {
 		return err
 	}

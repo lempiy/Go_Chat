@@ -5,21 +5,26 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/gorilla/websocket"
 	"github.com/lempiy/gochat/models"
-	"github.com/satori/go.uuid"
+	"github.com/lempiy/gochat/utils/token"
 )
+
+const Identifier = "system"
 
 //Session type represents anonymous with unique uuid v4 and ws connection
 type Session struct {
-	UUID string          `json:"uuid"`
-	Conn *websocket.Conn `json:"-"`
-	Sub  *models.User    `json:"-"` //nil if anonymous
+	Token string          `json:"token"`
+	Conn  *websocket.Conn `json:"-"`
+	Sub   *models.User    `json:"-"` //nil if anonymous
 }
 
-//NewSession creates session with unique UUID
-func NewSession(con *websocket.Conn) *Session {
+//NewSession creates session with unique Token
+func NewSession(con *websocket.Conn, tkn string) *Session {
+	if tkn == "" {
+		tkn, _ = token.GetAnonToken()
+	}
 	return &Session{
-		UUID: uuid.NewV4().String(),
-		Conn: con,
+		Token: tkn,
+		Conn:  con,
 	}
 }
 
@@ -59,18 +64,18 @@ func (sys *System) Join(sub *Session) {
 }
 
 //Leave method for exiting from the system
-func (sys *System) Leave(UUID string) {
-	sys.unsubscribe <- UUID
+func (sys *System) Leave(Token string) {
+	sys.unsubscribe <- Token
 }
 
 //Emit method triggers publish func
-func (sys *System) Emit(e models.Event) {
+func (sys *System) Publish(e models.Event) {
 	sys.publish <- e
 }
 
 //RetrieveEvents method retrieves publish func
-func (sys *System) RetrieveEvents(UUID string) {
-	sys.retrieve <- UUID
+func (sys *System) RetrieveEvents(Token string) {
+	sys.retrieve <- Token
 }
 
 //Init func runs sys infinite loop in separate goroutine
@@ -82,49 +87,47 @@ func (sys *System) run() {
 	for {
 		select {
 		case sub := <-sys.subscribe:
-			if _, found := sys.subscribers[sub.UUID]; !found {
-				sys.subscribers[sub.UUID] = sub
+			if _, found := sys.subscribers[sub.Token]; !found {
+				sys.subscribers[sub.Token] = sub
 				r, _ := json.Marshal(sub)
 				if sub.Conn.WriteMessage(websocket.TextMessage, r) != nil {
-					sys.unsubscribe <- sub.UUID
+					sys.unsubscribe <- sub.Token
 				}
-				beego.Info("NEW SESSION: ", sub.UUID)
+				beego.Info("NEW SESSION: ", sub.Token)
 			} else {
-				beego.Info("Old session: ", sub.UUID, "; WebSocket: ", sub.Conn != nil)
+				beego.Info("Old session: ", sub.Token, "; WebSocket: ", sub.Conn != nil)
 			}
 
-		case sUUID := <-sys.retrieve:
-			if sub, found := sys.subscribers[sUUID]; found {
+		case sToken := <-sys.retrieve:
+			if sub, found := sys.subscribers[sToken]; found {
 				if sub.Conn.WriteMessage(websocket.TextMessage, []byte("null")) != nil {
-					sys.unsubscribe <- sub.UUID
+					sys.unsubscribe <- sub.Token
 				}
 			} else {
-				beego.Info("User ", sUUID, " is not in a system.")
+				beego.Info("User ", sToken, " is not in a system.")
 			}
 			beego.Info("Get messages")
 
 		case event := <-sys.publish:
-			var sub *Session
-			var exist bool
-			json.Unmarshal([]byte(event.Content), sub)
-			sub, exist = sys.subscribers[sub.UUID]
-			if h, found := sys.eventMap[event.SysType]; found && exist {
-				h(event, sub)
-			}
-			beego.Info("New system event: ", event.Content)
+			beego.Info("New system event: ", event.Token)
+			if session, exist := sys.subscribers[event.Token]; exist {
+				if h, found := sys.eventMap[event.SysType]; found {
+					h(event, session)
 
+				}
+			}
 		case unsub := <-sys.unsubscribe:
 			if _, found := sys.subscribers[unsub]; found {
 				beego.Info("Websocket closed: ", unsub)
 				delete(sys.subscribers, unsub)
 			} else {
-				beego.Info("Cannot unsubscribe from system - user with UUID ", unsub, " not found")
+				beego.Info("Cannot unsubscribe from system - user with Token ", unsub, " not found")
 			}
 		case subleave := <-sys.leave:
 			if _, found := sys.subscribers[subleave]; found {
 				delete(sys.subscribers, subleave)
 			} else {
-				beego.Info("Cannot exit room - user with UUID ", subleave, " not found")
+				beego.Info("Cannot exit room - user with Token ", subleave, " not found")
 			}
 		}
 	}

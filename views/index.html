@@ -9,12 +9,15 @@
 <body>
     <h1>Hello World!!!!</h1>
     <script>
-        var socket = new WebSocket('ws://' + window.location.host + '/ws/join/?id=Golang');
+        var token = localStorage.getItem("token")
+        var socket = new WebSocket("ws://"+window.location.host+"/ws/join" + (token ?
+            '/?token='+token : ""));
         socket.onopen = (event) => {
             console.log("Handshake success.")
             socket.send(JSON.stringify({
-                "type": "message",
-                "text": "Hello from GO!"
+                "type": "login",
+                "target": "system",
+                "text": "{\"text\": \"Hello from GO!\"}"
             }));
         }
         socket.onmessage = (event) => {

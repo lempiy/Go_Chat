@@ -8,9 +8,10 @@ type Event struct {
 	Type      int        `json:"type,omitempty"`
 	SysType   string     `json:"sys_type,omitempty"`
 	Timestamp *time.Time `json:"timestamp,omitempty" orm:"auto_now_add;type(timestamp)"`
-	Content   string     `json:"content,omitempty"`
+	Content   string     `json:"content,omitempty" orm:"type(json)"`
 	Room      *Room      `json:"room" orm:"rel(fk)"`
 	User      *User      `json:"user" orm:"rel(fk);null;on_delete(set_null)"`
+	Token     string     `json:"-" orm:"-"`
 }
 
 //List of constants for methods types
