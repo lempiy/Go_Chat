@@ -54,6 +54,19 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 		}
 		return &system.Response{Type: "register", Data: r}
 	},
+	"logout": func(e models.Event, s *system.Session) *system.Response {
+		downgrade2Ses(s)
+		return &system.Response{Type: "logout", Data: true}
+	},
+}
+
+func downgrade2Ses(session *system.Session) error {
+	leaveAllRooms(session.Sub)
+	session.Sub = &chatroom.Subscriber{
+		Conn: session.Conn,
+	}
+	session.Token, _ = token.GetAnonToken()
+	return nil
 }
 
 func upgrade2Sub(session *system.Session, u *models.User) error {
@@ -237,5 +250,4 @@ func leaveAllRooms(sub *chatroom.Subscriber) {
 			room.Leave(sub.Id)
 		}
 	}
-	sub.Conn.Close()
 }
