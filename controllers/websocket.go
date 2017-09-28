@@ -55,6 +55,9 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 		return &system.Response{Type: "register", Data: r}
 	},
 	"logout": func(e models.Event, s *system.Session) *system.Response {
+		if s.Sub.Id == 0 {
+			return &system.Response{Type: "logout", Data: false}
+		}
 		downgrade2Ses(s)
 		return &system.Response{Type: "logout", Data: true}
 	},
