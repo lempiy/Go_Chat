@@ -94,6 +94,13 @@ func init() {
 
 }
 
+func createARoom(id int) *chatroom.Chatroom {
+	newRoom := chatroom.New(models.NewRoom(20, models.RoomTypeSpecial, id))
+	Rooms[newRoom.ID] = newRoom
+	newRoom.Init()
+	return newRoom
+}
+
 func initRoomAndSubscribe(sub *chatroom.Subscriber, room *models.Room) {
 	newRoom := chatroom.New(room)
 	Rooms[newRoom.ID] = newRoom
