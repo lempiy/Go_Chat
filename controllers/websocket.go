@@ -138,7 +138,6 @@ func (wsc *WebSocketCtrl) Get() {
 		if username != "" {
 			u := &models.User{
 				Username: username,
-				Password: "q1w2e3r4",
 			}
 
 			err = models.ReadUser(u)
@@ -180,9 +179,10 @@ func (wsc *WebSocketCtrl) Get() {
 				Content: message.Text,
 				Token:   session.Token,
 				Room:    globalRoom.Model})
-		} else if username != "" {
+		} else if session.Sub.User != nil {
 			switch message.Type {
 			case "get":
+				fmt.Println(sub)
 				globalRoom.RetrieveEvents(sub.Id)
 			case "connect":
 				connectToRooms(sub, message)

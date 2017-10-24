@@ -93,7 +93,13 @@ func (sys *System) run() {
 		case sub := <-sys.subscribe:
 			if _, found := sys.subscribers[sub.Token]; !found {
 				sys.subscribers[sub.Token] = sub
-				r, _ := json.Marshal(sub)
+				r, _ := json.Marshal(struct {
+					Type string      `json:"type"`
+					Data interface{} `json:"data"`
+				}{
+					Type: "session",
+					Data: sub,
+				})
 				if sub.Conn.WriteMessage(websocket.TextMessage, r) != nil {
 					sys.unsubscribe <- sub.Token
 				}
