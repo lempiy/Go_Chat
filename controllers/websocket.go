@@ -180,9 +180,9 @@ func (wsc *WebSocketCtrl) Get() {
 				Token:   session.Token,
 				Room:    globalRoom.Model})
 		} else if session.Sub.User != nil {
+			sub = session.Sub
 			switch message.Type {
 			case "get":
-				fmt.Println(sub)
 				globalRoom.RetrieveEvents(sub.Id)
 			case "connect":
 				connectToRooms(sub, message)
