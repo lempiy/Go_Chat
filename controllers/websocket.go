@@ -130,7 +130,7 @@ func (wsc *WebSocketCtrl) Get() {
 	var sub *chatroom.Subscriber
 	fmt.Println("TOKENs", t)
 	isValid, username := token.ValidateToken(t)
-
+	fmt.Println("TOKEN", isValid, username)
 	if !isValid {
 		session = system.NewSession(ws, "")
 	} else {
@@ -140,7 +140,7 @@ func (wsc *WebSocketCtrl) Get() {
 				Username: username,
 			}
 
-			err = models.ReadUser(u)
+			err = models.ReadUser(u, "username")
 
 			if err != nil {
 				fmt.Println(err)
