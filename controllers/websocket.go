@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/astaxie/beego"
 	"github.com/gorilla/websocket"
@@ -22,16 +21,12 @@ type WebSocketCtrl struct {
 	beego.Controller
 }
 
-type RoomsList map[int]*chatroom.Chatroom
-
 type Action struct {
 	Type     string `json:"type"`
 	Text     string `json:"text"`
 	Target   string `json:"target"`
 	TargetId int    `json:"target_id,omitempty"`
 }
-
-var Rooms RoomsList
 
 var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Response{
 	"login": func(e models.Event, s *system.Session) *system.Response {
@@ -80,6 +75,7 @@ func upgrade2Sub(session *system.Session, u *models.User) error {
 	}
 	joinRoomsInitial(session.Sub)
 	globalRoom.Join(session.Sub)
+	Subs.Add(session.Sub)
 	return nil
 }
 
@@ -87,25 +83,10 @@ func init() {
 	sys = system.New(StandartMap)
 	sys.Init()
 
-	Rooms = make(RoomsList)
 	globalRoom = chatroom.New(models.NewRoom(20, models.RoomTypeGeneral, 1))
-	Rooms[globalRoom.ID] = globalRoom
+	Rooms.Add(globalRoom)
 	globalRoom.Init()
 
-}
-
-func createARoom(id int) *chatroom.Chatroom {
-	newRoom := chatroom.New(models.NewRoom(20, models.RoomTypeSpecial, id))
-	Rooms[newRoom.ID] = newRoom
-	newRoom.Init()
-	return newRoom
-}
-
-func initRoomAndSubscribe(sub *chatroom.Subscriber, room *models.Room) {
-	newRoom := chatroom.New(room)
-	Rooms[newRoom.ID] = newRoom
-	newRoom.Init()
-	newRoom.Join(sub)
 }
 
 //Get methods establishes connection with users.
@@ -150,6 +131,7 @@ func (wsc *WebSocketCtrl) Get() {
 
 			sub = session.Sub
 			sub.User = u
+			Subs.Add(sub)
 
 			sub.User.LoadUsersRooms()
 			joinRoomsInitial(sub)
@@ -197,7 +179,7 @@ func (wsc *WebSocketCtrl) Get() {
 
 					globalRoom.Emit(e)
 				} else {
-					if r, exist := Rooms[message.TargetId]; exist {
+					if r := Rooms.Get(message.TargetId); r != nil {
 						e := models.Event{
 							Type:    models.EventMessage,
 							User:    sub.User,
@@ -226,38 +208,4 @@ func (wsc *WebSocketCtrl) Get() {
 
 type dataConnect struct {
 	Rooms []int `json:"rooms"`
-}
-
-func connectToRooms(sub *chatroom.Subscriber, am Action) error {
-	var data dataConnect
-	err := json.Unmarshal([]byte(am.Text), &data)
-	if err != nil {
-		return err
-	}
-	for _, roomID := range data.Rooms {
-		if room, ok := Rooms[roomID]; !ok {
-			return errors.New("Unknown room " + string(roomID))
-		} else {
-			room.Join(sub)
-		}
-	}
-	return nil
-}
-
-func joinRoomsInitial(sub *chatroom.Subscriber) {
-	for _, room := range sub.User.Rooms {
-		if r, exist := Rooms[room.Id]; exist {
-			r.Join(sub)
-		} else {
-			initRoomAndSubscribe(sub, room)
-		}
-	}
-}
-
-func leaveAllRooms(sub *chatroom.Subscriber) {
-	for _, roomID := range sub.RoomIDs {
-		if room, ok := Rooms[roomID]; ok {
-			room.Leave(sub.Id)
-		}
-	}
 }
