@@ -54,7 +54,7 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 			return &system.Response{Type: "logout", Data: false}
 		}
 		downgrade2Ses(s)
-		return &system.Response{Type: "logout", Data: true}
+		return &system.Response{Type: "logout", Data: s.Token}
 	},
 	"create_room": func(e models.Event, s *system.Session) *system.Response {
 		if s.Sub.User != nil {
