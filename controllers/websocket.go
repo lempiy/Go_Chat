@@ -56,6 +56,33 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 		downgrade2Ses(s)
 		return &system.Response{Type: "logout", Data: true}
 	},
+	"create_room": func(e models.Event, s *system.Session) *system.Response {
+		if s.Sub.User != nil {
+			var cd CreateRoomData
+			var rData RoomData
+			r := createARoom(0)
+			json.Unmarshal([]byte(e.Content), &cd)
+			rData.RoomID = r.ID
+			for _, id := range cd.RoomSubIds {
+				if sub := Subs.Get(id); sub != nil {
+					r.Join(sub)
+					rData.RoomSubs = append(rData.RoomSubs, *sub.User)
+					rData.RoomMembers = append(rData.RoomMembers, *sub.User)
+				} else {
+					var usr *models.User
+					usr.Id = id
+					models.ReadUser(usr)
+					if usr.Username != "" {
+						models.UpdateUserRooms(usr, r.Model)
+						rData.RoomSubs = append(rData.RoomSubs, *sub.User)
+						rData.RoomMembers = append(rData.RoomMembers, *sub.User)
+					}
+				}
+			}
+			return &system.Response{Type: "create_room", Data: rData}
+		}
+		return &system.Response{Type: "create_room", Data: false}
+	},
 }
 
 func downgrade2Ses(session *system.Session) error {

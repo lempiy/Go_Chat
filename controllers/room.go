@@ -10,6 +10,7 @@ import (
 type RoomData struct {
 	RoomID   int           `json:"room_id"`
 	RoomSubs []models.User `json:"room_subs"`
+	RoomMembers []models.User `json:"room_members"`
 }
 
 type CreateRoomData struct {
