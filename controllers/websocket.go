@@ -30,6 +30,12 @@ type Action struct {
 
 var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Response{
 	"login": func(e models.Event, s *system.Session) *system.Response {
+		if s.Sub.User != nil {
+			return &system.Response{Type: "login", Data: loginResponse{
+				Success: true,
+				Token:   s.Token,
+			}}
+		}
 		r, user := login(e.Content)
 		if r.Success {
 			sys.Leave(s.Token)
@@ -40,6 +46,11 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 		return &system.Response{Type: "login", Data: r}
 	},
 	"register": func(e models.Event, s *system.Session) *system.Response {
+		if s.Sub.User != nil {
+			return &system.Response{Type: "register", Data: loginResponse{
+				Success: false,
+			}}
+		}
 		r, user := register(e.Content)
 		if r.Success {
 			sys.Leave(s.Token)
