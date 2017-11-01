@@ -100,6 +100,7 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 				Type:    models.EventJoin,
 				Content: string(bts),
 				Room:    r.Model,
+				NoSave:  true,
 			}
 			r.Emit(joinedEvent)
 			return &system.Response{Type: "create_room", Data: rData}
