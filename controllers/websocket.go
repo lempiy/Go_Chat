@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/session"
 	"github.com/gorilla/websocket"
 	"github.com/lempiy/gochat/models"
 	"github.com/lempiy/gochat/types/chatroom"
 	"github.com/lempiy/gochat/types/system"
 	"github.com/lempiy/gochat/utils/token"
+	"golang.org/x/text/message"
 )
 
 var globalRoom *chatroom.Chatroom
@@ -90,6 +92,16 @@ var StandartMap = &map[string]func(e models.Event, s *system.Session) *system.Re
 					}
 				}
 			}
+			bts, err := json.Marshal(rData)
+			if err != nil {
+				return &system.Response{Type: "create_room", Data: false}
+			}
+			joinedEvent := models.Event{
+				Type:    models.EventJoin,
+				Content: string(bts),
+				Room:    r.Model,
+			}
+			r.Emit(joinedEvent)
 			return &system.Response{Type: "create_room", Data: rData}
 		}
 		return &system.Response{Type: "create_room", Data: false}

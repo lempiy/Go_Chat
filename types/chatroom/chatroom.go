@@ -88,7 +88,6 @@ func (chatroom *Chatroom) run() {
 			} else {
 				beego.Info("Old user: ", sub.User, "; WebSocket: ", sub.Conn != nil)
 			}
-
 		case sID := <-chatroom.retrieve:
 			events := chatroom.Model.GetAll()
 			beego.Info(events)
@@ -111,7 +110,9 @@ func (chatroom *Chatroom) run() {
 			beego.Info("Get messages")
 
 		case event := <-chatroom.publish:
-			chatroom.Model.Add(&event)
+			if !event.NoSave {
+				chatroom.Model.Add(&event)
+			}
 			chatroom.broadcast(&event)
 			beego.Info("New message: ", event.Content, " - ", event.User.Id)
 
